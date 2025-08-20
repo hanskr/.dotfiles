@@ -26,3 +26,6 @@ dist
 
 # environment variables per project
 .env
+
+# Intellij config
+.idea
