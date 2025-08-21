@@ -22,9 +22,6 @@ config.scrollback_lines = 100000
 config.window_decorations = "RESIZE"
 config.inactive_pane_hsb = { saturation = 0.6, brightness = 0.8 }
 
--- config.window_background_opacity = 0.9
--- config.macos_window_background_blur = 30
-
 -- Keybinds for splitting panes
 config.keys = {
   { key = "d", mods = "SHIFT|CMD", action = act.SplitVertical({ domain = "CurrentPaneDomain" }) },
@@ -43,5 +40,25 @@ config.keys = {
   },
 }
 
-return config
+config.mouse_bindings = {
+    -- Disable the default click behavior
+    {
+      event = { Up = { streak = 1, button = "Left"} },
+      mods = "NONE",
+      action = wezterm.action.CompleteSelection 'ClipboardAndPrimarySelection',
+    },
+    -- Ctrl-click will open the link under the mouse cursor
+    {
+        event = { Up = { streak = 1, button = "Left" } },
+        mods = "CMD",
+        action = wezterm.action.OpenLinkAtMouseCursor,
+    },
+    -- Disable the Ctrl-click down event to stop programs from seeing it when a URL is clicked
+    {
+        event = { Down = { streak = 1, button = "Left" } },
+        mods = "CMD",
+        action = wezterm.action.Nop,
+    },
+}
 
+return config
