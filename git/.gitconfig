@@ -6,7 +6,7 @@
 	excludesfile = ~/.gitignore_global
 	autocrlf = input
 	pager = delta
-[branch "main"]
+[pull]
 	rebase = true
 [branch]
 	autosetuprebase = always
