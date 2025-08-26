@@ -2,6 +2,7 @@ local wezterm = require 'wezterm'
 local config = wezterm.config_builder()
 local act = wezterm.action
 
+config.font = wezterm.font 'MesloLGS NF'
 config.font_size = 13
 config.harfbuzz_features = { 'calt=0', 'clig=0', 'liga=0' }
 config.hide_tab_bar_if_only_one_tab = true
