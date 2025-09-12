@@ -38,17 +38,18 @@
           ]
           ++ extraModules;
         };
+      mkHMFlake = conf: home-manager.lib.homeManagerConfiguration.buildFlakePackage conf;
       configs = {
-        air = mkHM {
+        air = mkHMFlake (mkHM {
           extraModules = [ ./hm/home.nix ];
           user = "hanskristiankismul";
           homeDir = "/Users/hanskristiankismul";
-        };
-        work = mkHM {
+        });
+        work = mkHMFlake (mkHM {
           extraModules = [ ./hm/work.nix ];
           user = "hans.kristian.kismul@m10s.io";
           homeDir = "/Users/hans.kristian.kismul@m10s.io";
-        };
+        });
       };
     in
     {
