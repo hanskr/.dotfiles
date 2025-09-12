@@ -16,6 +16,7 @@
     }:
     let
       system = "aarch64-darwin";
+      hostConf = import ~/.config/home-manager/hosts/current.nix;
       mkHM =
         {
           extraModules ? [ ],
@@ -28,8 +29,8 @@
           modules = [
             # Pick up username/home from the environment for portability
             {
-              home.username = builtins.getEnv "USER";
-              home.homeDirectory = builtins.getEnv "HOME";
+              home.username = hostConf.user;
+              home.homeDirectory = hostConf.homeDir;
               xdg.enable = true;
             }
             ./hm/common.nix
