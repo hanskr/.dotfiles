@@ -46,8 +46,9 @@
         homeDir = "/Users/hanskristiankismul";
       };
       homeConfigurations.work = mkHM {
-        extraModules = [ ./hm/work.nix ]; };
+        extraModules = [ ./hm/work.nix ];
         user = "hans.kristian.kismul@m10s.io";
         homeDir = "/Users/hans.kristian.kismul@m10s.io";
+      };
     };
 }
