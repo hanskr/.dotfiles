@@ -1,0 +1,20 @@
+[user]
+	# These values are set in ~/.config/git/config_local
+[include]
+	path = ~/.config/git/config_local
+[core]
+	excludesfile = ~/.config/git/ignore_global
+	autocrlf = input
+	pager = delta
+[pull]
+	rebase = true
+[branch]
+	autosetuprebase = always
+[init]
+	defaultBranch = main
+[interactive]
+	diffFilter = delta --color-only
+[merge]
+	conflictStyle = zdiff3
+[delta]
+	navigate = true
