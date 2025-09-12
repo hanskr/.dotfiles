@@ -40,15 +40,15 @@
         };
     in
     {
-      homeConfigurations.home = mkHM {
+      homeConfigurations."hanskristiankismul" = mkHM {
         extraModules = [ ./hm/home.nix ];
         user = "hanskristiankismul";
         homeDir = "/Users/hanskristiankismul";
       };
-      homeConfigurations.work = mkHM {
+      homeConfigurations."hans.kristian.kismul@m10s.io" = mkHM {
         extraModules = [ ./hm/work.nix ];
-        user = "hans.kristian.kismulm10s.io";
-        homeDir = "/Users/hans.kristian.kismulm10s.io";
+        user = "hans.kristian.kismul@m10s.io";
+        homeDir = "/Users/hans.kristian.kismul@m10s.io";
       };
     };
 }
