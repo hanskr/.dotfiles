@@ -22,6 +22,8 @@
     wezterm
   ];
 
+  programs.home-manager.enable = true;
+
   home.file.".zshenv".source = ../dotfiles/zsh/.zshenv;
   xdg.configFile."zsh" = {
     source = ../dotfiles/zsh/zsh;
