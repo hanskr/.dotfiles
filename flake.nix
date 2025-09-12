@@ -38,17 +38,24 @@
           ]
           ++ extraModules;
         };
+      configs = {
+        air = mkHM {
+          extraModules = [ ./hm/home.nix ];
+          user = "hanskristiankismul";
+          homeDir = "/Users/hanskristiankismul";
+        };
+        work = mkHM {
+          extraModules = [ ./hm/work.nix ];
+          user = "hans.kristian.kismul@m10s.io";
+          homeDir = "/Users/hans.kristian.kismul@m10s.io";
+        };
+      };
     in
     {
-      homeConfigurations."air" = mkHM {
-        extraModules = [ ./hm/home.nix ];
-        user = "hanskristiankismul";
-        homeDir = "/Users/hanskristiankismul";
-      };
-      homeConfigurations."work" = mkHM {
-        extraModules = [ ./hm/work.nix ];
-        user = "hans.kristian.kismul@m10s.io";
-        homeDir = "/Users/hans.kristian.kismul@m10s.io";
-      };
+      # Expose at top level
+      homeConfigurations = configs;
+
+      # Expose under packages.<system> so CLI finds activationPackage
+      packages.${system}.homeConfigurations = configs;
     };
 }
