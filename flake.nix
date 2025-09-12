@@ -16,10 +16,11 @@
     }:
     let
       system = "aarch64-darwin";
-      hostConf = import ~/.config/home-manager/hosts/current.nix;
       mkHM =
         {
           extraModules ? [ ],
+          user, 
+          homeDir,
         }:
         home-manager.lib.homeManagerConfiguration {
           pkgs = import nixpkgs {
@@ -29,8 +30,8 @@
           modules = [
             # Pick up username/home from the environment for portability
             {
-              home.username = hostConf.user;
-              home.homeDirectory = hostConf.homeDir;
+              home.username = user;
+              home.homeDirectory = homeDir;
               xdg.enable = true;
             }
             ./hm/common.nix
@@ -39,7 +40,14 @@
         };
     in
     {
-      homeConfigurations.home = mkHM { extraModules = [ ./hm/home.nix ]; };
-      homeConfigurations.work = mkHM { extraModules = [ ./hm/work.nix ]; };
+      homeConfigurations.home = mkHM {
+        extraModules = [ ./hm/home.nix ];
+        user = "hanskristiankismul";
+        homeDir = "/Users/hanskristiankismul";
+      };
+      homeConfigurations.work = mkHM {
+        extraModules = [ ./hm/work.nix ]; };
+        user = "hans.kristian.kismul@m10s.io";
+        homeDir = "/Users/hans.kristian.kismul@m10s.io";
     };
 }
