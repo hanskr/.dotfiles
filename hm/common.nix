@@ -20,7 +20,6 @@
     jq
     ripgrep
     wezterm
-    ponysay
   ];
 
   programs.home-manager.enable = true;
