@@ -18,6 +18,7 @@
     glow
     httpie
     jq
+    nixfmt
     ripgrep
     wezterm
   ];

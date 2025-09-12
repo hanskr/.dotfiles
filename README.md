@@ -8,12 +8,12 @@ curl -fsSL https://install.determinate.systems/nix | sh -s -- install
 
 Init
 ```bash
-nix run home-manager/master -- switch --flake github:hanskr/.dotfiles#hanskristiankismul
-nix run home-manager/master -- switch --flake github:hanskr/.dotfiles#hans.kristian.kismul@m10s.io
+nix run home-manager/master -- switch --impure --flake github:hanskr/.dotfiles#air
+nix run home-manager/master -- switch --impure --flake github:hanskr/.dotfiles#work
 ```
 
 Update
 ```bash
-home-manager switch --flake github:hanskr/.dotfiles#hanskristiankismul
-home-manager switch --flake github:hanskr/.dotfiles#hans.kristian.kismul@m10s.io
+home-manager switch --impure --flake github:hanskr/.dotfiles#air
+home-manager switch --impure --flake github:hanskr/.dotfiles#work
 ```
