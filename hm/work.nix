@@ -5,5 +5,6 @@
     kubectl
     kubetail
     sbt
+    yq
   ];
 }
