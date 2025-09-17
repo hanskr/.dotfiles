@@ -2,6 +2,15 @@ local wezterm = require 'wezterm'
 local config = wezterm.config_builder()
 local act = wezterm.action
 
+local resurrect = wezterm.plugin.require("https://github.com/MLFlexer/resurrect.wezterm")
+wezterm.plugin.update_all()
+
+resurrect.state_manager.periodic_save({interval_seconds = 60, save_workspaces=true})
+wezterm.on("resurrect.state_manager.periodic_save.finished", function(opts)
+  write_current_state("default", "workspace")
+end)
+wezterm.on("gui-startup", resurrect.state_manager.resurrect_on_gui_startup)
+
 config.font = wezterm.font 'MesloLGS NF'
 config.font_size = 13
 config.harfbuzz_features = { 'calt=0', 'clig=0', 'liga=0' }
