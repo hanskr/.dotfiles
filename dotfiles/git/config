@@ -6,6 +6,8 @@
 	excludesfile = ~/.config/git/ignore_global
 	autocrlf = input
 	pager = delta
+[diff]
+	colorMoved = dimmed-zebra
 [pull]
 	rebase = true
 [branch]
