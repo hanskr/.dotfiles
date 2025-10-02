@@ -11,6 +11,7 @@
     k6
     kubectl
     kubetail
+    nodejs_24
     sbt
   ];
 }
