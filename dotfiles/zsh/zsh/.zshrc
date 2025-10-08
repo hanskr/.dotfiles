@@ -5,7 +5,7 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
-ANTIDOTE_PATH="$(nix eval --inputs-from . --raw nixpkgs#antidote.outPath)/share/antidote/antidote.zsh"
+ANTIDOTE_PATH="$HOME/.local/lib/antidote/share/antidote/antidote.zsh"
 if [ -f "$ANTIDOTE_PATH" ]; then
   source "$ANTIDOTE_PATH"
   antidote load

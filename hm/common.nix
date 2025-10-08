@@ -25,6 +25,11 @@
 
   programs.home-manager.enable = true;
 
+  home.file = {
+    ".local/lib/antidote" = {
+      source = config.lib.file.mkOutOfStoreSymlink pkgs.antidote;
+    };
+  };
   home.file.".zshenv".source = ../dotfiles/zsh/.zshenv;
   xdg.configFile."zsh" = {
     source = ../dotfiles/zsh/zsh;
