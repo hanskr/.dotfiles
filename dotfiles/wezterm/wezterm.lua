@@ -29,6 +29,7 @@ config.colors = {
 config.enable_scroll_bar = true
 config.scrollback_lines = 100000
 
+config.front_end = 'WebGpu'
 config.window_decorations = "RESIZE"
 config.inactive_pane_hsb = { saturation = 0.6, brightness = 0.8 }
 
