@@ -11,9 +11,11 @@
         gke-gcloud-auth-plugin
       ]
     ))
+    jaq
     k6
     kubectl
     kubetail
     sbt
+    yaak
   ];
 }

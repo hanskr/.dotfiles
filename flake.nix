@@ -2,7 +2,7 @@
   description = "Home Manager";
 
   inputs = {
-    nixpkgs.url = "github:numtide/nixpkgs-unfree/nixos-unstable";
+    nixpkgs.url = "github:numtide/nixpkgs-unfree/nixpkgs-unstable";
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
   };
