@@ -33,6 +33,8 @@ config.front_end = 'WebGpu'
 config.window_decorations = "RESIZE"
 config.inactive_pane_hsb = { saturation = 0.6, brightness = 0.8 }
 
+config.send_composed_key_when_left_alt_is_pressed = true
+
 -- Keybinds for splitting panes
 config.keys = {
   { key = "d", mods = "SHIFT|CMD", action = act.SplitVertical({ domain = "CurrentPaneDomain" }) },
