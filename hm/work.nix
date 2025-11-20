@@ -16,6 +16,7 @@
     kubectl
     kubetail
     sbt
+    shellcheck
     yaak
   ];
 }
