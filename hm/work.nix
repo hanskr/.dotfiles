@@ -15,6 +15,7 @@
     k6
     kubectl
     kubetail
+    presenterm
     sbt
     shellcheck
     yaak
