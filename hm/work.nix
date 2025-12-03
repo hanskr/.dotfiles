@@ -12,6 +12,7 @@
       ]
     ))
     jaq
+    go
     k6
     kubectl
     kubetail
