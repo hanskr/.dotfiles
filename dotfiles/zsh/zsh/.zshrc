@@ -11,15 +11,6 @@ if [ -f "$ANTIDOTE_PATH" ]; then
   antidote load
 fi
 
-# Source anything in .zshrc.d.
-for _rc in ${ZDOTDIR:-$HOME}/.zshrc.d/*.zsh; do
-  # Ignore tilde files.
-  if [[ $_rc:t != '~'* ]]; then
-    source "$_rc"
-  fi
-done
-unset _rc
-
 # Set the list of directories that zsh searches for commands.
 path=(
   $HOME/{,s}bin(N)
@@ -33,6 +24,15 @@ path=(
 
 # Ensure path arrays do not contain duplicates.
 typeset -gU path fpath
+
+# Source anything in .zshrc.d.
+for _rc in ${ZDOTDIR:-$HOME}/.zshrc.d/*.zsh; do
+  # Ignore tilde files.
+  if [[ $_rc:t != '~'* ]]; then
+    source "$_rc"
+  fi
+done
+unset _rc
 
 # To customize prompt, run `p10k configure` or edit .p10k.zsh.
 [[ ! -f ${ZDOTDIR:-$HOME}/.p10k.zsh ]] || source ${ZDOTDIR:-$HOME}/.p10k.zsh
