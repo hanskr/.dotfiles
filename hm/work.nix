@@ -16,6 +16,7 @@
     k6
     kubectl
     kubetail
+    postgresql
     presenterm
     sbt
     shellcheck
