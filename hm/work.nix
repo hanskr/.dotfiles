@@ -16,6 +16,7 @@
     k6
     kubectl
     kubetail
+    mermaid-cli
     postgresql
     presenterm
     sbt
