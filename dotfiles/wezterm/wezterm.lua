@@ -30,7 +30,13 @@ config.enable_scroll_bar = true
 config.scrollback_lines = 100000
 
 config.front_end = 'WebGpu'
-config.window_decorations = "RESIZE"
+config.window_decorations = "INTEGRATED_BUTTONS|RESIZE"
+config.window_padding = {
+    left = 0,
+    right = 0,
+    top = 48,  -- push content below the integrated buttons
+    bottom = 0,
+  }
 config.inactive_pane_hsb = { saturation = 0.6, brightness = 0.8 }
 
 config.send_composed_key_when_left_alt_is_pressed = true
@@ -51,6 +57,7 @@ config.keys = {
     mods = 'CMD',
     action = act.ClearScrollback 'ScrollbackAndViewport',
   },
+  { key = 'Enter', mods = 'SHIFT', action = wezterm.action.SendString '\x1b[13;2u' },
 }
 
 config.mouse_bindings = {

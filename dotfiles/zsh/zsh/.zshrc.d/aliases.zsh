@@ -18,3 +18,10 @@ alias cd..='cd ..'
 
 alias c='() { if [ -z "$1" ]; then code .; else code "$1"; fi; }'
 alias hmu='(){ home-manager switch --impure --flake .$1;}'
+
+# Insert newline without executing
+insert-newline() {
+  LBUFFER+=$'\n'
+}
+zle -N insert-newline
+bindkey '^[[13;2u' insert-newline
