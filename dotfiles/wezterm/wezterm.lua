@@ -32,8 +32,8 @@ config.scrollback_lines = 100000
 config.front_end = 'WebGpu'
 config.window_decorations = "INTEGRATED_BUTTONS|RESIZE"
 config.window_padding = {
-    left = 0,
-    right = 0,
+    left = 2,
+    right = 2,
     top = 48,  -- push content below the integrated buttons
     bottom = 0,
   }
