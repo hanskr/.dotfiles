@@ -27,7 +27,7 @@ config.colors = {
   scrollbar_thumb = '#666666',
 }
 config.enable_scroll_bar = true
-config.scrollback_lines = 100000
+config.scrollback_lines = 999999999
 
 config.front_end = 'WebGpu'
 config.window_decorations = "INTEGRATED_BUTTONS|RESIZE"
