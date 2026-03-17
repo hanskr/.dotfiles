@@ -19,14 +19,14 @@
 [delta]
 	navigate = true
 
-[includeIf "hasconfig:remote.*.url:**hanskr**"]
+[includeIf "hasconfig:remote.*.url:*hanskr/*"]
   path = ~/.config/git/config_private
 
-[includeIf "hasconfig:remote.*.url:**m10s-green**"]
+[includeIf "hasconfig:remote.*.url:*m10s-green/*"]
   path = ~/.config/git/config_work
 
-[includeIf "hasconfig:remote.*.url:**m10s-red**"]
+[includeIf "hasconfig:remote.*.url:*m10s-red/*"]
   path = ~/.config/git/config_work
 
-[includeIf "hasconfig:remote.*.url:**m10s-sandbox**"]
+[includeIf "hasconfig:remote.*.url:*m10s-sandbox/*"]
   path = ~/.config/git/config_work
