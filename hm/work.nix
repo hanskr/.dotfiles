@@ -13,6 +13,7 @@
     ))
     jaq
     go
+    humioctl
     k6
     kubectl
     kubetail
