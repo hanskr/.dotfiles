@@ -16,7 +16,15 @@ alias -g .....='../../../..'
 alias -g ......='../../../../..'
 alias cd..='cd ..'
 
-alias c='() { if [ -z "$1" ]; then code .; else code "$1"; fi; }'
+c() {
+  if [ -z "$1" ]; then
+    code .
+  else
+    code "$1"
+  fi
+}
+compdef '_files' c
+
 alias hmu='(){ home-manager switch --impure --flake .$1;}'
 
 # Insert newline without executing
