@@ -22,6 +22,10 @@
     presenterm
     sbt
     shellcheck
+    (snowflake-cli.overridePythonAttrs (old: {
+      doCheck = false;
+      propagatedBuildInputs = (old.propagatedBuildInputs or []) ++ [ pkgs.python3Packages.keyring ];
+    }))
     yaak
   ];
 }
