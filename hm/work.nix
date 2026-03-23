@@ -2,7 +2,6 @@
 {
   home.packages = with pkgs; [
     _1password-cli
-    asdf-vm
     awscli
     gnupg
     (google-cloud-sdk.withExtraComponents (
@@ -11,8 +10,6 @@
         gke-gcloud-auth-plugin
       ]
     ))
-    jaq
-    go
     humioctl
     k6
     kubectl
@@ -21,7 +18,6 @@
     postgresql
     presenterm
     sbt
-    shellcheck
     (snowflake-cli.overridePythonAttrs (old: {
       doCheck = false;
       propagatedBuildInputs = (old.propagatedBuildInputs or []) ++ [ pkgs.python3Packages.keyring ];

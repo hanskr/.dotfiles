@@ -10,16 +10,20 @@
 
   home.packages = with pkgs; [
     antidote
+    asdf-vm
     bat
     delta
     deno
     fzf
     git
     glow
+    go
     httpie
+    jaq
     jq
     nixfmt
     ripgrep
+    shellcheck
     wezterm
   ];
 
