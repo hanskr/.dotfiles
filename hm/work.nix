@@ -3,6 +3,7 @@
   home.packages = with pkgs; [
     _1password-cli
     awscli
+    gh
     gnupg
     (google-cloud-sdk.withExtraComponents (
       with google-cloud-sdk.components;
