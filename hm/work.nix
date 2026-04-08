@@ -1,4 +1,15 @@
 { pkgs, ... }:
+let
+  snowflakePkgs = pkgs.extend (final: prev: {
+    python3Packages = prev.python3Packages.override {
+      overrides = pfinal: pprev: {
+        snowflake-connector-python = pprev.snowflake-connector-python.overridePythonAttrs {
+          doCheck = false;
+        };
+      };
+    };
+  });
+in
 {
   home.packages = with pkgs; [
     _1password-cli
@@ -19,7 +30,7 @@
     postgresql
     presenterm
     sbt
-    (snowflake-cli.overridePythonAttrs (old: {
+    (snowflakePkgs.snowflake-cli.overridePythonAttrs (old: {
       doCheck = false;
       propagatedBuildInputs = (old.propagatedBuildInputs or []) ++ [ pkgs.python3Packages.keyring ];
     }))
