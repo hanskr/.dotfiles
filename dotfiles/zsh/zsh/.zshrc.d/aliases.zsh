@@ -17,10 +17,10 @@ alias -g ......='../../../../..'
 alias cd..='cd ..'
 
 c() {
-  if [ -z "$1" ]; then
+  if [ $# -eq 0 ]; then
     code .
   else
-    code "$1"
+    code "$@"
   fi
 }
 compdef '_files' c
