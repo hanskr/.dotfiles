@@ -41,6 +41,41 @@ config.inactive_pane_hsb = { saturation = 0.6, brightness = 0.8 }
 
 config.send_composed_key_when_left_alt_is_pressed = true
 
+-- Workaround for macOS sleep/wake window resize bug
+-- https://github.com/wez/wezterm/issues/4633
+do
+  local prev_sizes = {}
+  local restoring = {}
+
+  wezterm.on('window-resized', function(window, pane)
+    local id = window:window_id()
+
+    if restoring[id] then
+      restoring[id] = nil
+      return
+    end
+
+    local win_dims = window:get_dimensions()
+
+    if prev_sizes[id] then
+      local prev = prev_sizes[id]
+      -- Only intervene when the DPI changed — that's the sleep/wake glitch fingerprint.
+      -- Normal user resizes (window manager, dragging) never change the DPI.
+      if win_dims.dpi ~= prev.dpi then
+        restoring[id] = true
+        window:set_inner_size(prev.pixel_width, prev.pixel_height)
+        return
+      end
+    end
+
+    prev_sizes[id] = {
+      dpi = win_dims.dpi,
+      pixel_width = win_dims.pixel_width,
+      pixel_height = win_dims.pixel_height,
+    }
+  end)
+end
+
 -- Keybinds for splitting panes
 config.keys = {
   { key = "d", mods = "SHIFT|CMD", action = act.SplitVertical({ domain = "CurrentPaneDomain" }) },
