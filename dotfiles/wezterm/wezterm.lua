@@ -59,18 +59,12 @@ do
 
     if prev_sizes[id] then
       local prev = prev_sizes[id]
-      -- Sleep/wake glitch: DPI changes but logical size stays the same, so pixel
-      -- dimensions scale proportionally to the DPI ratio. Intentional resizes
-      -- (Raycast, dragging) set arbitrary dimensions unrelated to DPI.
+      -- Only intervene when the DPI changed — that's the sleep/wake glitch fingerprint.
+      -- Normal user resizes (window manager, dragging) never change the DPI.
       if win_dims.dpi ~= prev.dpi then
-        local dpi_ratio = win_dims.dpi / prev.dpi
-        local w_ratio = win_dims.pixel_width / prev.pixel_width
-        local h_ratio = win_dims.pixel_height / prev.pixel_height
-        if math.abs(w_ratio - dpi_ratio) < 0.05 and math.abs(h_ratio - dpi_ratio) < 0.05 then
-          restoring[id] = true
-          window:set_inner_size(prev.pixel_width, prev.pixel_height)
-          return
-        end
+        restoring[id] = true
+        window:set_inner_size(prev.pixel_width, prev.pixel_height)
+        return
       end
     end
 
