@@ -3,7 +3,7 @@ let
   snowflakePkgs = pkgs.extend (final: prev: {
     python3Packages = prev.python3Packages.override {
       overrides = pfinal: pprev: {
-        snowflake-connector-python = pprev.snowflake-connector-python.overridePythonAttrs {
+        aioboto3 = pprev.aioboto3.overridePythonAttrs {
           doCheck = false;
         };
       };

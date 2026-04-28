@@ -20,7 +20,7 @@
     httpie
     jaq
     jq
-    mise
+    (mise.override { direnv = direnv.overrideAttrs { doCheck = false; }; })
     nixfmt
     ripgrep
     shellcheck
