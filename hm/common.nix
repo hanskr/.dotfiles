@@ -10,7 +10,6 @@
 
   home.packages = with pkgs; [
     antidote
-    asdf-vm
     bat
     delta
     deno
@@ -21,6 +20,7 @@
     httpie
     jaq
     jq
+    mise
     nixfmt
     ripgrep
     shellcheck

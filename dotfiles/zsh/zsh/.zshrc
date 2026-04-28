@@ -16,11 +16,12 @@ path=(
   $HOME/{,s}bin(N)
   $HOME/.local/{,s}bin(N)
   $HOME/.npm-global/bin
-  $HOME/.asdf/shims
   /opt/{homebrew,local}/{,s}bin(N)
   /usr/local/{,s}bin(N)
   $path
 )
+
+eval "$(mise activate zsh)"
 
 # Ensure path arrays do not contain duplicates.
 typeset -gU path fpath
