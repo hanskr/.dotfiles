@@ -15,6 +15,7 @@ nix run home-manager/master -- switch --impure --flake .#air
 
 Update
 ```bash
+nix flake update
 home-manager switch --impure --flake .#air
 hmu #air
 
