@@ -1,0 +1,136 @@
+# ============================================================
+#  Ghostty config  —  ported from wezterm.lua
+#  Managed by home-manager -> ~/.config/ghostty/config
+#  Reload in-app: cmd+shift+,
+# ============================================================
+
+# ── Font ────────────────────────────────────────────────
+font-family = "MesloLGS NF"
+font-size = 13
+# Disable ligatures (wezterm harfbuzz calt=0 / clig=0 / liga=0)
+font-feature = -calt
+font-feature = -clig
+font-feature = -liga
+font-feature = -dlig
+
+# ── Window & appearance ─────────────────────────────────
+# Closest to wezterm INTEGRATED_BUTTONS; tabs live in the titlebar,
+# so the old top:48 padding hack is no longer needed.
+# transparent: see-through draggable titlebar, content merges up into it.
+# Alts: native | tabs | hidden
+macos-titlebar-style = transparent
+# Hide the folder/proxy icon in the titlebar (title is blank anyway)
+macos-titlebar-proxy-icon = hidden
+
+# Empty title bar — locks the title so the shell/p10k can't write pwd into it
+title = " "
+
+# wezterm left/right = 2, bottom = 0
+window-padding-x = 2
+window-padding-y = 0
+window-padding-balance = true
+
+# Dim inactive splits (≈ wezterm inactive_pane_hsb)
+unfocused-split-opacity = 0.8
+# Thin visible divider between panes (= wezterm's default split color #444444)
+split-divider-color = #444444
+
+# Per-pane scrollbar (≈ wezterm enable_scroll_bar; follows macOS style,
+# so the custom #666666 thumb color does NOT port)
+scrollbar = system
+
+# ── Colors: wezterm's built-in default ("Wez") palette ──
+# bold ANSI colors use the bright variant (= wezterm bold_brightens_ansi_colors)
+bold-is-bright = true
+foreground = #b3b3b3
+background = #000000
+cursor-color = #52ad70
+cursor-text = #000000
+cursor-style = block
+cursor-style-blink = false
+selection-background = #806699
+# 16 ANSI colors (wezterm default ansi + brights)
+palette = 0=#000000
+palette = 1=#cc5555
+palette = 2=#55cc55
+palette = 3=#cdcd55
+# blue lightened from wezterm's #5555cc to stay readable on black while still
+# clearly blue (minimum-contrast desaturates it to white, so we set it directly)
+palette = 4=#7777ff
+palette = 5=#cc55cc
+palette = 6=#7acaca
+palette = 7=#cccccc
+palette = 8=#555555
+palette = 9=#ff5555
+palette = 10=#55ff55
+palette = 11=#ffff55
+palette = 12=#5555ff
+palette = 13=#ff55ff
+palette = 14=#55ffff
+palette = 15=#ffffff
+
+# ── macOS key behavior ──────────────────────────────────
+# = wezterm send_composed_key_when_left_alt_is_pressed
+macos-option-as-alt = false
+
+# ── Scrollback ──────────────────────────────────────────
+# RAM-bound in Ghostty (bytes, not lines). ~4 GB is the max.
+# Downgrade from wezterm's effectively-infinite buffer.
+scrollback-limit = 4294967295
+
+# ── Selection & mouse ───────────────────────────────────
+# wezterm left-click CompleteSelection
+copy-on-select = clipboard
+mouse-hide-while-typing = true
+# cmd+click opens links by default (link-url) = OpenLinkAtMouseCursor
+
+# ── Session restore ─────────────────────────────────────
+# Restores layout + working dirs (NOT scrollback history).
+# NOTE: only saves on cmd+Q, not when closing with the red traffic light.
+window-save-state = always
+
+# ── Shell integration ───────────────────────────────────
+shell-integration = detect
+# no-cursor: keep block cursor; no-title: don't let the shell write pwd to the title
+shell-integration-features = no-cursor,sudo,no-title
+
+# ── Updates ─────────────────────────────────────────────
+# Installed via nix (ghostty-bin) — can't self-update; bump with `nix flake update`.
+auto-update = off
+
+# ============================================================
+#  Keybinds  —  1:1 with wezterm bindings
+# ============================================================
+
+# Splits (wezterm SplitHorizontal=right, SplitVertical=down)
+keybind = cmd+d=new_split:right
+keybind = cmd+shift+d=new_split:down
+
+# Jump between panes (wezterm cmd+opt+arrows)
+keybind = cmd+alt+left=goto_split:left
+keybind = cmd+alt+right=goto_split:right
+keybind = cmd+alt+up=goto_split:up
+keybind = cmd+alt+down=goto_split:down
+
+# Close pane (confirms when a process is running)
+keybind = cmd+w=close_surface
+
+# Zoom pane (wezterm cmd+shift+Enter TogglePaneZoomState)
+keybind = cmd+shift+enter=toggle_split_zoom
+
+# Resize panes (replaces the dead wezterm LEADER>r table —
+# config.leader was never set, so that binding did nothing)
+keybind = cmd+ctrl+left=resize_split:left,20
+keybind = cmd+ctrl+right=resize_split:right,20
+keybind = cmd+ctrl+up=resize_split:up,20
+keybind = cmd+ctrl+down=resize_split:down,20
+
+# Clear scrollback + viewport (wezterm cmd+k)
+keybind = cmd+k=clear_screen
+
+# Shift+Enter sends CSI u sequence (wezterm SendString '\x1b[13;2u')
+keybind = shift+enter=csi:13;2u
+
+# ── Bonus: free in Ghostty (missed from iTerm2) ─────────
+# cmd+f -> scrollback search (built-in since 1.3)
+# cmd+g / cmd+shift+g -> find next / previous

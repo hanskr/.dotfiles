@@ -14,6 +14,7 @@
     delta
     deno
     fzf
+    ghostty-bin # macOS: official signed binary; plain `ghostty` is Linux-only
     git
     glow
     go
@@ -45,5 +46,8 @@
   };
   xdg.configFile."wezterm/wezterm.lua" = {
     source = ../dotfiles/wezterm/wezterm.lua;
+  };
+  xdg.configFile."ghostty/config" = {
+    source = ../dotfiles/ghostty/config;
   };
 }
