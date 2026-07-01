@@ -23,8 +23,10 @@
     jq
     (mise.override { direnv = direnv.overrideAttrs { doCheck = false; }; })
     nixfmt
+    osmium-tool
     ripgrep
     shellcheck
+    viu
     wezterm
   ];
 
