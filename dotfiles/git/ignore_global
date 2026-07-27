@@ -29,3 +29,6 @@ dist
 
 # Intellij config
 .idea
+
+# Local Claude config
+.claude/settings.local.json
