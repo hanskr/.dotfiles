@@ -131,6 +131,10 @@ keybind = cmd+k=clear_screen
 # Shift+Enter sends CSI u sequence (wezterm SendString '\x1b[13;2u')
 keybind = shift+enter=csi:13;2u
 
+# Fix copy/paste to search field
+keybind = super+v=paste_from_clipboard
+keybind = super+c=copy_to_clipboard
+
 # ── Bonus: free in Ghostty (missed from iTerm2) ─────────
 # cmd+f -> scrollback search (built-in since 1.3)
 # cmd+g / cmd+shift+g -> find next / previous
