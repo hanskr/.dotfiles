@@ -21,6 +21,7 @@ hm #work -u         # 'nix flake update' first — the weekly bump
 hm list             # recent generations, with what changed in each
 hm diff 118 120     # version diff between two generations
 hm rollback         # back to the previous one
+hm rollback 118     # back to a specific one
 ```
 
 `hm` always builds before it prompts, keeping the result as a GC root under

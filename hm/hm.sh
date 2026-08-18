@@ -5,7 +5,7 @@
 #   hm #<target> [-u]  build <target>, show what changes, then offer to apply
 #   hm list            recent generations, with what changed in each
 #   hm diff [a] [b]    version diff between generations
-#   hm rollback        activate the previous generation
+#   hm rollback [n]    activate generation n (default: the previous one)
 #
 # The build is the expensive part, so it always happens before the prompt and
 # the result is kept as a GC root — saying "no" costs nothing but the wait, and
@@ -72,7 +72,7 @@ ${BOLD}hm${OFF} — preview, apply and record home-manager changes
   hm list            recent generations, with what changed in each
   hm diff [a] [b]    version diff between generations
                      (no args: previous → current; one: a → current)
-  hm rollback        activate the previous generation
+  hm rollback [n]    activate generation n (default: the previous one)
   hm -h              this
 
   -u, --update       run 'nix flake update' before building
@@ -168,17 +168,24 @@ cmd_diff() {
 }
 
 cmd_rollback() {
-  local cur prev link
+  local want=${1:-} cur to link
   cur=$(gen_num) || die "no current home-manager generation"
-  prev=$(prev_gen "$cur")
-  [ -n "$prev" ] || die "no generation older than $cur"
-  link="$PROFILES/home-manager-$prev-link"
-  [ -e "$link" ] || die "generation $prev is gone (garbage collected?)"
 
-  step "generation $cur → $prev — this would revert:"
+  if [ -n "$want" ]; then
+    to=$want
+    [ "$to" != "$cur" ] || die "generation $cur is already current"
+  else
+    to=$(prev_gen "$cur")
+    [ -n "$to" ] || die "no generation older than $cur"
+  fi
+
+  link="$PROFILES/home-manager-$to-link"
+  [ -e "$link" ] || die "no such generation: $to (see 'hm list')"
+
+  step "generation $cur → $to — this would change:"
   nvd diff "$PROFILE" "$link" || true
   echo
-  if ! confirm "Activate generation $prev?" n; then
+  if ! confirm "Activate generation $to?" n; then
     echo "aborted."
     return 0
   fi
