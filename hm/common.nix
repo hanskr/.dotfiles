@@ -28,7 +28,6 @@
     ripgrep
     shellcheck
     viu
-    wezterm
   ];
 
   programs.home-manager.enable = true;
