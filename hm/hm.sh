@@ -18,8 +18,10 @@ RESULTS="${XDG_STATE_HOME:-$HOME/.local/state}/hm"
 
 if [ -t 1 ]; then
   BOLD=$'\033[1m' DIM=$'\033[2m' RED=$'\033[31m' YEL=$'\033[33m' GRN=$'\033[32m' OFF=$'\033[0m'
+  NVD_COLOUR=always
 else
   BOLD='' DIM='' RED='' YEL='' GRN='' OFF=''
+  NVD_COLOUR=never
 fi
 
 step() { printf '%s→%s %s\n' "$GRN" "$OFF" "$*"; }
@@ -164,7 +166,7 @@ cmd_diff() {
   [ -e "$lb" ] || die "no such generation: $b (see 'hm list')"
 
   step "generation $a → $b"
-  nvd diff "$la" "$lb"
+  render_diff "$(nvd_diff "$la" "$lb")" "$(direct_union "$la" "$lb")"
 }
 
 cmd_rollback() {
@@ -183,13 +185,81 @@ cmd_rollback() {
   [ -e "$link" ] || die "no such generation: $to (see 'hm list')"
 
   step "generation $cur → $to — this would change:"
-  nvd diff "$PROFILE" "$link" || true
+  render_diff "$(nvd_diff "$PROFILE" "$link")" "$(direct_union "$PROFILE" "$link")"
   echo
   if ! confirm "Activate generation $to?" n; then
     echo "aborted."
     return 0
   fi
   "$link/activate"
+}
+
+# --------------------------------------------------------------------------- diff rendering
+
+# Packages named in home.packages, as opposed to everything they drag in.
+# home-path is a buildEnv, so its *direct* references are exactly the
+# requested set — no flake evaluation needed, and it stays correct for old
+# generations whose config no longer matches the working tree.
+direct_names() {
+  local hp
+  hp=$(readlink -f "$1/home-path" 2>/dev/null) || return 0
+  [ -n "$hp" ] || return 0
+  nix-store -q --references "$hp" 2>/dev/null |
+    sed 's|^/nix/store/[a-z0-9]*-||; s|-[0-9].*$||' | sort -u
+}
+
+# A package removed on one side is only direct on the other, so union both.
+# Space-separated: package names never contain one, and a newline-separated
+# awk -v assignment is not portable.
+direct_union() {
+  {
+    direct_names "$1"
+    direct_names "$2"
+  } | sort -u | tr '\n' ' '
+}
+
+# nvd decides on colour by looking at its own stdout, which is a pipe here
+# because we capture the output to reorder it. Tell it what we decided instead.
+nvd_diff() {
+  nvd --color "$NVD_COLOUR" diff "$1" "$2" 2>/dev/null || true
+}
+
+# Strip ANSI, for the commit message and for matching on package names.
+uncolour() {
+  sed $'s/\033\\[[0-9;]*m//g'
+}
+
+# nvd's diff, with what you asked for listed ahead of what merely came along.
+# Direct packages keep nvd's colours; the rest are stripped bare and dimmed,
+# so the two groups are told apart by more than just their order.
+render_diff() {
+  printf '%s\n' "$1" | awk -v direct="$2" -v dim="$DIM" -v off="$OFF" '
+    BEGIN {
+      n = split(direct, a, " ")
+      for (i = 1; i <= n; i++) if (a[i] != "") D[a[i]] = 1
+    }
+    function plain(s) { gsub(/\033\[[0-9;]*m/, "", s); return s }
+    # nvd numbers its rows; after reordering those numbers only mislead.
+    function unnumber(s) { sub(/[ \t]*#[0-9]+/, "", s); return s }
+    function flush(   i) {
+      for (i = 1; i <= nd; i++) print dir[i]
+      if (nt) {
+        print dim "      · pulled in (" nt ")" off
+        for (i = 1; i <= nt; i++) print dim tra[i] off
+      }
+      nd = 0; nt = 0
+    }
+    {
+      bare = plain($0)
+      if (bare !~ /^\[[A-Z][^]]*\][ \t]*#[0-9]+[ \t]/) { flush(); print; next }
+      rest = bare
+      sub(/^\[[A-Z][^]]*\][ \t]*#[0-9]+[ \t]*/, "", rest)
+      split(rest, F, /[ \t]+/)
+      if (F[1] in D) dir[++nd] = unnumber($0)
+      else tra[++nt] = unnumber(bare)
+    }
+    END { flush() }
+  '
 }
 
 # --------------------------------------------------------------------- switch
@@ -259,7 +329,7 @@ record() {
 }
 
 cmd_switch() {
-  local target=$1 do_update=$2 attr out dry summary tobuild diff_out majors cur_path new_path
+  local target=$1 do_update=$2 attr out dry summary tobuild diff_out diff_colour majors cur_path new_path
 
   case " $(targets) " in
   *" $target "*) ;;
@@ -310,9 +380,11 @@ cmd_switch() {
     warn "no current generation — nothing to diff against"
     diff_out=''
   else
-    diff_out=$(nvd diff "$PROFILE" "$out" 2>/dev/null || true)
+    # Coloured for the screen, stripped for the commit message it also feeds.
+    diff_colour=$(nvd_diff "$PROFILE" "$out")
+    diff_out=$(printf '%s\n' "$diff_colour" | uncolour)
     echo
-    printf '%s\n' "$diff_out"
+    render_diff "$diff_colour" "$(direct_union "$PROFILE" "$out")"
     case "$diff_out" in
     *"No version or selection state changes"*)
       printf '%s(no package changes — config files only)%s\n' "$DIM" "$OFF"
