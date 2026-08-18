@@ -18,7 +18,8 @@ After that, use `hm` (`hm/hm.sh`):
 ```bash
 hm #air             # build, show what changes, ask before applying
 hm #work -u         # 'nix flake update' first — the weekly bump
-hm list             # recent generations
+hm list             # recent generations, with what changed in each
+hm diff 118 120     # version diff between two generations
 hm rollback         # back to the previous one
 ```
 

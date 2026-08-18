@@ -2,8 +2,9 @@
 #
 # hm — preview, apply and record home-manager changes.
 #
-#   hm <target> [-u]   build <target>, show what changes, then offer to apply
-#   hm list            recent generations
+#   hm #<target> [-u]  build <target>, show what changes, then offer to apply
+#   hm list            recent generations, with what changed in each
+#   hm diff [a] [b]    version diff between generations
 #   hm rollback        activate the previous generation
 #
 # The build is the expensive part, so it always happens before the prompt and
@@ -68,7 +69,9 @@ usage() {
 ${BOLD}hm${OFF} — preview, apply and record home-manager changes
 
   hm #<target> [-u]  build <target>, show what changes, then offer to apply
-  hm list            list recent generations
+  hm list            recent generations, with what changed in each
+  hm diff [a] [b]    version diff between generations
+                     (no args: previous → current; one: a → current)
   hm rollback        activate the previous generation
   hm -h              this
 
@@ -98,21 +101,76 @@ all_gens() {
   done | sort -n
 }
 
+prev_gen() {
+  all_gens | awk -v c="$1" '$1 + 0 < c + 0' | tail -1
+}
+
+# "~25 +4 -1" — upgraded, added, removed between two generations.
+gen_summary() {
+  local a=$1 b=$2 out
+  if ! out=$(nvd diff "$PROFILES/home-manager-$a-link" "$PROFILES/home-manager-$b-link" 2>/dev/null); then
+    printf '%s ?\n' "$b"
+    return 0
+  fi
+  printf '%s %s\n' "$b" "$(printf '%s\n' "$out" | awk '
+    /^\[U\./ { u++ } /^\[A\./ { a++ } /^\[R\./ { r++ }
+    END {
+      s = ""
+      if (u) s = s "~" u " "
+      if (a) s = s "+" a " "
+      if (r) s = s "-" r
+      sub(/ +$/, "", s)
+      print (s == "" ? "" : s)
+    }')"
+}
+
 cmd_list() {
-  local cur id link when mark
+  local cur id link when sum i ids summaries
   cur=$(gen_num) || cur=''
-  while read -r id; do
+  mapfile -t ids < <(all_gens | tail -15)
+
+  # ~0.7s each, so run the whole column at once rather than in sequence.
+  summaries=$(
+    for ((i = 1; i < ${#ids[@]}; i++)); do
+      gen_summary "${ids[i - 1]}" "${ids[i]}" &
+    done
+    wait
+  )
+
+  for id in "${ids[@]}"; do
     link="$PROFILES/home-manager-$id-link"
     when=$(stat -c '%y' "$link" 2>/dev/null | cut -c1-16) || when='?'
-    if [ "$id" = "$cur" ]; then mark="  ${GRN}(current)${OFF}"; else mark=''; fi
-    printf '%4s  %s%s\n' "$id" "$when" "$mark"
-  done < <(all_gens | tail -15)
+    sum=$(printf '%s\n' "$summaries" | awk -v g="$id" '$1 == g { $1 = ""; sub(/^ /, ""); print; exit }')
+    if [ "$id" = "$cur" ]; then
+      printf '%4s  %s  %s%-12s%s %s(current)%s\n' "$id" "$when" "$DIM" "$sum" "$OFF" "$GRN" "$OFF"
+    else
+      printf '%4s  %s  %s%s%s\n' "$id" "$when" "$DIM" "$sum" "$OFF"
+    fi
+  done
+}
+
+cmd_diff() {
+  local a=$1 b=$2 cur la lb
+  cur=$(gen_num) || die "no current home-manager generation"
+  if [ -z "$a" ]; then
+    a=$(prev_gen "$cur")
+    [ -n "$a" ] || die "no generation older than $cur"
+  fi
+  [ -n "$b" ] || b=$cur
+
+  la="$PROFILES/home-manager-$a-link"
+  lb="$PROFILES/home-manager-$b-link"
+  [ -e "$la" ] || die "no such generation: $a (see 'hm list')"
+  [ -e "$lb" ] || die "no such generation: $b (see 'hm list')"
+
+  step "generation $a → $b"
+  nvd diff "$la" "$lb"
 }
 
 cmd_rollback() {
   local cur prev link
   cur=$(gen_num) || die "no current home-manager generation"
-  prev=$(all_gens | awk -v c="$cur" '$1 + 0 < c + 0' | tail -1)
+  prev=$(prev_gen "$cur")
   [ -n "$prev" ] || die "no generation older than $cur"
   link="$PROFILES/home-manager-$prev-link"
   [ -e "$link" ] || die "generation $prev is gone (garbage collected?)"
@@ -194,7 +252,7 @@ record() {
 }
 
 cmd_switch() {
-  local target=$1 do_update=$2 attr out dry summary tobuild diff_out majors
+  local target=$1 do_update=$2 attr out dry summary tobuild diff_out majors cur_path new_path
 
   case " $(targets) " in
   *" $target "*) ;;
@@ -230,26 +288,35 @@ cmd_switch() {
   step "building $target"
   nix build --impure "$attr" -o "$out"
 
-  if [ ! -e "$PROFILE" ]; then
+  # The store path is the only honest answer to "is there anything to do".
+  # nvd compares package names and versions, so it reports no change at all
+  # for edits to dotfiles, home.file sources, or hm itself — none of which
+  # move a version number, all of which still need activating.
+  new_path=$(readlink -f "$out")
+  cur_path=$(readlink -f "$PROFILE" 2>/dev/null) || cur_path=''
+  if [ "$cur_path" = "$new_path" ]; then
+    step "already up to date — the running generation is this exact build"
+    return 0
+  fi
+
+  if [ -z "$cur_path" ]; then
     warn "no current generation — nothing to diff against"
     diff_out=''
   else
     diff_out=$(nvd diff "$PROFILE" "$out" 2>/dev/null || true)
     echo
     printf '%s\n' "$diff_out"
+    case "$diff_out" in
+    *"No version or selection state changes"*)
+      printf '%s(no package changes — config files only)%s\n' "$DIM" "$OFF"
+      ;;
+    esac
   fi
 
   majors=$(major_bumps "$diff_out")
   if [ -n "$majors" ]; then
     printf '\n%s⚠ major version bumps%s\n%s\n' "$YEL" "$OFF" "$majors"
   fi
-
-  case "$diff_out" in
-  *"No version or selection state changes"*)
-    step "already up to date — nothing to apply"
-    return 0
-    ;;
-  esac
 
   echo
   if ! confirm "Apply?" n; then
@@ -277,6 +344,11 @@ main() {
     list)
       shift
       cmd_list "$@"
+      return
+      ;;
+    diff)
+      shift
+      cmd_diff "${1:-}" "${2:-}"
       return
       ;;
     rollback)
