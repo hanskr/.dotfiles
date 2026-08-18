@@ -17,11 +17,12 @@
     ghostty-bin # macOS: official signed binary; plain `ghostty` is Linux-only
     git
     glow
+    (callPackage ./hm.nix { })
     go
     httpie
     jaq
     jq
-    (mise.override { direnv = direnv.overrideAttrs { doCheck = false; }; })
+    mise
     nixfmt
     osmium-tool
     ripgrep

@@ -25,8 +25,6 @@ c() {
 }
 compdef '_files' c
 
-alias hmu='(){ home-manager switch --impure --flake .$1;}'
-
 # Insert newline without executing
 insert-newline() {
   LBUFFER+=$'\n'
