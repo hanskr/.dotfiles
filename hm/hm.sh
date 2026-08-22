@@ -15,13 +15,15 @@ FLAKE="${HM_FLAKE:-$HOME/.dotfiles}"
 PROFILES="${XDG_STATE_HOME:-$HOME/.local/state}/nix/profiles"
 PROFILE="$PROFILES/home-manager"
 RESULTS="${XDG_STATE_HOME:-$HOME/.local/state}/hm"
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/nix"
+PINS="$RESULTS/pinned"
 
 if [ -t 1 ]; then
   BOLD=$'\033[1m' DIM=$'\033[2m' RED=$'\033[31m' YEL=$'\033[33m' GRN=$'\033[32m' OFF=$'\033[0m'
-  NVD_COLOUR=always
+  NVD_COLOUR=always ISATTY=1
 else
   BOLD='' DIM='' RED='' YEL='' GRN='' OFF=''
-  NVD_COLOUR=never
+  NVD_COLOUR=never ISATTY=0
 fi
 
 step() { printf '%s→%s %s\n' "$GRN" "$OFF" "$*"; }
@@ -75,6 +77,8 @@ ${BOLD}hm${OFF} — preview, apply and record home-manager changes
   hm diff [a] [b]    version diff between generations
                      (no args: previous → current; one: a → current)
   hm rollback [n]    activate generation n (default: the previous one)
+  hm purge [days]    delete generations older than days (default 30), then
+                     collect garbage and optimise the store
   hm -h              this
 
   -u, --update       run 'nix flake update' before building
@@ -192,6 +196,330 @@ cmd_rollback() {
     return 0
   fi
   "$link/activate"
+}
+
+# ---------------------------------------------------------------------- purge
+
+# Every profile under $PROFILES: a bare symlink with numbered generations
+# beside it. home-manager is one, nix-env's "profile" is another, and old
+# generations of either pin their whole closure just the same.
+profile_roots() {
+  local p
+  for p in "$PROFILES"/*; do
+    case "$p" in *-[0-9]*-link) continue ;; esac
+    if [ -L "$p" ]; then printf '%s\n' "$p"; fi
+  done
+}
+
+# Generation ids of <profile>, oldest first.
+prof_gens() {
+  local link id
+  for link in "$1"-[0-9]*-link; do
+    if [ -e "$link" ]; then
+      id=${link%-link}
+      printf '%s\n' "${id##*-}"
+    fi
+  done | sort -n
+}
+
+prof_cur() {
+  local t
+  t=$(readlink "$1") || return 1
+  t=${t%-link}
+  printf '%s' "${t##*-}"
+}
+
+# Generations of <profile> older than <cutoff>, minus the two always kept: the
+# live one, and the one behind it — so rollback survives a purge even on a
+# machine that has not switched in months.
+prof_doomed() {
+  local prof=$1 cutoff=$2 cur keep id when
+  cur=$(prof_cur "$prof") || return 0
+  keep=$(prof_gens "$prof" | awk -v c="$cur" '$1 + 0 < c + 0' | tail -1)
+  for id in $(prof_gens "$prof"); do
+    if [ "$id" = "$cur" ] || [ "$id" = "$keep" ]; then continue; fi
+    when=$(stat -c %Y "$prof-$id-link" 2>/dev/null) || continue
+    if [ "$when" -lt "$cutoff" ]; then printf '%s\n' "$id"; fi
+  done
+}
+
+# hm keeps a GC root per target so a build you declined is still there when you
+# say yes. Nothing else knows to remove them, so one left behind by a build you
+# never applied pins its closure forever.
+stale_roots() {
+  local r cur
+  [ -d "$RESULTS" ] || return 0
+  cur=$(readlink -f "$PROFILE" 2>/dev/null) || cur=''
+  for r in "$RESULTS"/next-*; do
+    if [ -L "$r" ] && [ "$(readlink -f "$r")" != "$cur" ]; then
+      printf '%s\n' "$r"
+    fi
+  done
+}
+
+# Roots that are not ours: ./result links in projects, dev shells, whatever
+# else got registered. The collector traces from these, so everything they
+# reach survives — but only because they are registered, so show them and let
+# the reader confirm nothing is missing from the list.
+other_roots() {
+  local l t
+  for l in /nix/var/nix/gcroots/auto/*; do
+    [ -L "$l" ] || continue
+    t=$(readlink "$l") || continue
+    case "$t" in
+    "$PROFILES"/* | "$RESULTS"/* | /nix/var/nix/profiles/*) continue ;;
+    "${XDG_STATE_HOME:-$HOME/.local/state}"/home-manager/*) continue ;;
+    esac
+    # Dangling ones protect nothing; nix drops them during the sweep.
+    if [ -e "$t" ]; then printf '%s\n' "${t/#$HOME/\~}"; fi
+  done | sort -u
+}
+
+# Store paths holding a real .app bundle. Since Sonoma, macOS App Management
+# will not let anything modify a signed bundle without Full Disk Access — not
+# even root, which is what the nix daemon doing the deleting runs as. nix chmods
+# a path writable before unlinking it, so one dead GUI app aborts the whole
+# sweep, and worse, it has already dropped the path from its database by then:
+# what is left is a directory nix no longer believes in, which trips the next
+# sweep in exactly the same place. So they have to be kept out of the sweep's
+# way rather than tried and failed on. One level below the store root, so this
+# is a directory scan, not a walk — under a second on a store of 100k paths.
+app_bundles() {
+  local d
+  find /nix/store -maxdepth 2 -name Applications -type d 2>/dev/null |
+    while IFS= read -r d; do
+      if [ -n "$(find "$d" -maxdepth 2 -name '*.app' -type d -print -quit 2>/dev/null)" ]; then
+        printf '%s\n' "${d%/Applications}"
+      fi
+    done
+}
+
+# The wreckage of an earlier sweep: on disk, but no longer a path nix knows. A
+# root cannot protect one — the collector deletes store entries it has no record
+# of on sight — so these have to go by hand before anything else can be swept.
+orphan_bundles() {
+  local p
+  for p in "$@"; do
+    nix-store --check-validity "$p" 2>/dev/null || printf '%s\n' "$p"
+  done
+}
+
+# The grant has to be on the terminal rather than on nix: TCC attributes a
+# request to whichever app owns the session, so sudo inherits what it has.
+orphan_help() {
+  local p
+  echo
+  for p in "$@"; do printf '      %s%s%s\n' "$DIM" "$p" "$OFF"; done
+  cat <<EOF
+
+      System Settings → Privacy & Security → App Management → + your terminal
+      then: sudo rm -rf <the paths above>
+EOF
+}
+
+# Pin a bundle as a GC root and the collector walks past it instead of dying on
+# it; everything else in the store still goes. --realise on a path that is
+# already valid only registers the root, but ask first anyway: on an orphan it
+# would go off and fetch 60MB from a cache mid-purge.
+pin_bundles() {
+  local p link
+  mkdir -p "$PINS"
+  for p in "$@"; do
+    nix-store --check-validity "$p" 2>/dev/null || continue
+    link="$PINS/${p##*/}"
+    if nix-store --add-root "$link" --indirect --realise "$p" >/dev/null 2>&1; then
+      printf '%s\n' "$link"
+    fi
+  done
+}
+
+# nix-store --optimise prints nothing whatsoever until it finishes, and finishing
+# can be half an hour away: most of the store passes in milliseconds, and then it
+# reaches a nixpkgs checkout and hard-links a quarter of a million tiny files one
+# at a time. Silence that long is indistinguishable from a hang — so ask it to
+# narrate (-vv is the level at which it names what it is on) and keep the last
+# one on screen. Counting the files too, because during the slow stretch the
+# path alone sits unchanged for minutes and looks just as stuck.
+optimise() {
+  local total
+  total=$(find /nix/store -maxdepth 1 -mindepth 1 -not -name '.*' | wc -l)
+  nix-store --optimise -vv 2>&1 |
+    awk -v total="$total" -v dim="$DIM" -v off="$OFF" -v tty="$ISATTY" '
+      function clear() { if (tty) printf "\r\033[2K" }
+      function show() {
+        if (!tty) return
+        printf "\r\033[2K    %s%d/%d paths, %d files linked   %s%s", dim, n, total, k, p, off
+        fflush()
+      }
+      /^optimising path/ {
+        n++
+        p = $0
+        sub(/^optimising path .\/nix\/store\/[a-z0-9]+-/, "", p)
+        sub(/.\.\.\.$/, "", p)
+        show()
+        next
+      }
+      /^linking / { k++; if (k % 500 == 0) show(); next }
+      /^loaded /  { next }
+      { clear(); printf "    %s\n", $0; fflush() }
+      END { clear() }
+    '
+}
+
+cmd_purge() {
+  local days=${1:-30} cutoff before prof entry ids csize total=0 rcount r
+  local log swept p bsize
+  local -a plan=() doomed=() roots=() others=() bundles=() orphans=() pinned=()
+
+  case "$days" in
+  '' | *[!0-9]*) die "purge takes a number of days, e.g. 'hm purge 30'" ;;
+  esac
+
+  cutoff=$(date -d "$days days ago" +%s) || die "need GNU date"
+  before=$(date -d "$days days ago" '+%Y-%m-%d')
+
+  step "purge — anything older than $days days (before $before)"
+  echo
+  printf '  %sdeleting%s\n' "$BOLD" "$OFF"
+
+  while IFS= read -r prof; do
+    mapfile -t doomed < <(prof_doomed "$prof" "$cutoff")
+    [ "${#doomed[@]}" -gt 0 ] || continue
+    total=$((total + ${#doomed[@]}))
+    plan+=("$prof ${doomed[*]}")
+    printf '    %-13s %-11s %sgeneration %s … %s%s\n' \
+      "${prof##*/}" \
+      "$(printf '%d of %d' "${#doomed[@]}" "$(prof_gens "$prof" | wc -l)")" \
+      "$DIM" "${doomed[0]}" "${doomed[-1]}" "$OFF"
+  done < <(profile_roots)
+
+  mapfile -t roots < <(stale_roots)
+  rcount=${#roots[@]}
+  if [ "$rcount" -gt 0 ]; then
+    printf '    %-13s %-11s %s(a rebuild to get back)%s\n' \
+      'hm builds' "$rcount unapplied" "$DIM" "$OFF"
+  fi
+
+  csize=''
+  if [ -d "$CACHE" ]; then
+    csize=$(du -sh "$CACHE" 2>/dev/null | cut -f1) || csize=''
+  fi
+  if [ -n "$csize" ]; then
+    printf '    %-13s %-11s %s(regenerates on demand)%s\n' \
+      'nix cache' "$csize" "$DIM" "$OFF"
+  fi
+
+  if [ "$total" -eq 0 ] && [ "$rcount" -eq 0 ] && [ -z "$csize" ]; then
+    echo "    nothing to purge"
+    return 0
+  fi
+
+  # Garbage collection is a tracing collector: it walks the closure of every
+  # remaining root and deletes only what nothing reaches. So the honest way to
+  # answer "will this delete something I still use" is to show what stays a
+  # root — the rest follows.
+  printf '\n  %skeeping%s\n' "$BOLD" "$OFF"
+  if [ "$total" -gt 0 ]; then
+    printf '    the current generation and the one before it\n'
+  fi
+  mapfile -t others < <(other_roots)
+  if [ "${#others[@]}" -gt 0 ]; then
+    printf '    %d result link%s outside the profiles\n' \
+      "${#others[@]}" "$([ "${#others[@]}" -eq 1 ] || echo s)"
+    for r in "${others[@]}"; do printf '      %s%s%s\n' "$DIM" "$r" "$OFF"; done
+  fi
+  mapfile -t bundles < <(app_bundles)
+  if [ "${#bundles[@]}" -gt 0 ]; then
+    bsize=$(du -shc "${bundles[@]}" 2>/dev/null | tail -1 | cut -f1) || bsize='?'
+    printf '    %d app bundle%s macOS protects from deletion (%s)\n' \
+      "${#bundles[@]}" "$([ "${#bundles[@]}" -eq 1 ] || echo s)" "$bsize"
+    mapfile -t orphans < <(orphan_bundles "${bundles[@]}")
+  fi
+  if command -v lsof >/dev/null 2>&1; then
+    printf '    anything a running process holds open %s(via lsof)%s\n' "$DIM" "$OFF"
+  else
+    # Nix looks for open store paths by shelling out to lsof on macOS, and
+    # swallows the error if it is missing — you get no warning, just less
+    # protection. Say so here instead.
+    warn "lsof not on PATH: nix cannot see store paths held by running"
+    warn "processes. Close any 'nix develop' shells before continuing."
+  fi
+  # Known-broken before we start, so say it before the slow part rather than
+  # after: a pin cannot save a path nix has already forgotten about.
+  if [ "${#orphans[@]}" -gt 0 ]; then
+    echo
+    warn "an earlier sweep left ${#orphans[@]} bundle(s) on disk that nix no longer"
+    warn "knows about, and it will stop on them again. Remove them first:"
+    orphan_help "${orphans[@]}"
+  fi
+
+  echo
+  if [ "$total" -gt 0 ]; then
+    confirm "Delete $total generations, then collect garbage and optimise?" n || {
+      echo "aborted."
+      return 0
+    }
+  else
+    confirm "Nothing that old — collect garbage and optimise anyway?" n || {
+      echo "aborted."
+      return 0
+    }
+  fi
+
+  for entry in "${plan[@]}"; do
+    prof=${entry%% *}
+    ids=${entry#* }
+    step "${prof##*/}: deleting old generations"
+    # shellcheck disable=SC2086 # deliberate: one argument per generation id
+    nix-env --profile "$prof" --delete-generations $ids
+  done
+
+  # Both of these hold GC roots, so they have to go before the sweep, not after.
+  if [ "$rcount" -gt 0 ]; then
+    step "dropping $rcount unapplied build root(s)"
+    rm -f "${roots[@]}"
+  fi
+  if [ -n "$csize" ]; then
+    step "clearing $CACHE"
+    rm -rf "${CACHE:?}"/*
+  fi
+
+  if [ "${#bundles[@]}" -gt 0 ]; then
+    step "pinning app bundles out of the sweep's way"
+    mapfile -t pinned < <(pin_bundles "${bundles[@]}")
+  fi
+
+  step "collecting garbage — the slow part"
+  log=$(mktemp) || die "cannot create a temp file"
+  swept=1
+  nix-store --gc 2>&1 | tee "$log" || swept=0
+
+  # A pin is only for the duration of the sweep; leaving one behind would keep a
+  # bundle's whole closure alive until the next purge noticed.
+  if [ "${#pinned[@]}" -gt 0 ]; then rm -f "${pinned[@]}"; fi
+
+  # auto-optimise-store is off by default, so this is where the duplicates go.
+  # Worth doing even if the sweep died: it reclaims by hard-linking, not by
+  # deleting, so it does not depend on the sweep having finished.
+  step "hard-linking duplicate files — the long one, safe to interrupt"
+  optimise
+
+  if [ "$swept" -eq 0 ]; then
+    echo
+    warn "the sweep stopped early, so some of the garbage is still there."
+    # Its own summary line says '0 store paths deleted' after an abort, which is
+    # the count it never got round to tallying, not a rollback. Everything it
+    # printed 'deleting' for really is gone.
+    warn "what it printed 'deleting' for above is gone regardless of the 0 in"
+    warn "its summary — that count is only reported by a run that finishes."
+    if [ "${#orphans[@]}" -gt 0 ]; then
+      warn "it stopped on the bundle(s) it no longer has a record of:"
+      orphan_help "${orphans[@]}"
+    fi
+    rm -f "$log"
+    return 1
+  fi
+  rm -f "$log"
 }
 
 # --------------------------------------------------------------------------- diff rendering
@@ -433,6 +761,11 @@ main() {
     rollback)
       shift
       cmd_rollback "$@"
+      return
+      ;;
+    purge)
+      shift
+      cmd_purge "${1:-}"
       return
       ;;
     -*) die "unknown option: $1" ;;

@@ -22,12 +22,31 @@ hm list             # recent generations, with what changed in each
 hm diff 118 120     # version diff between two generations
 hm rollback         # back to the previous one
 hm rollback 118     # back to a specific one
+hm purge            # reclaim disk: drop generations older than 30 days
+hm purge 7          # keep only the last week
 ```
 
 `hm` always builds before it prompts, keeping the result as a GC root under
 `$XDG_STATE_HOME/hm/`. Declining costs nothing but the wait; accepting later
 reuses the build. On a successful switch it offers to commit `flake.lock`
 alone — with the version diff as the message — and push.
+
+`hm purge` is the counterweight: every generation is a GC root, so nothing is
+ever reclaimed until they are deleted. It covers both profiles under
+`$XDG_STATE_HOME/nix/profiles`, hm's own build roots, and `~/.cache/nix`, then
+runs `nix-store --gc` and `--optimise`. The current generation and the one
+before it are always kept, so rollback survives.
+
+`--optimise` is the long pole: it hashes every file in the store, and a single
+nixpkgs checkout is a quarter of a million tiny ones. nix reports nothing while
+it does this, so `hm` makes it narrate. Interrupting is free — the hard links it
+has already made stay made.
+
+macOS will not let anything — root included — modify a signed `.app` bundle, and
+nix drops a path from its database *before* it unlinks it, so a single GUI app in
+the store aborts the sweep and leaves behind a directory nix no longer believes
+in. `hm purge` pins the bundles as GC roots for the duration instead, so the
+collector walks past them; they are the one thing it never reclaims.
 
 If a change ever breaks `hm` itself, home-manager is still there:
 ```bash
