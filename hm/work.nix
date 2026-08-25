@@ -48,4 +48,6 @@ in
     }))
     yaak
   ];
+
+  xdg.configFile."zsh/.zshrc.d/work.zsh".source = ../dotfiles/zsh/work.zsh;
 }
