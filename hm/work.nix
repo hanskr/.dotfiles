@@ -38,6 +38,7 @@ in
     kubectl
     kubetail
     mermaid-cli
+    nono
     postgresql
     presenterm
     sbt
