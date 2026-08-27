@@ -5,6 +5,10 @@
 # Codex does its own sandboxing, which is redundant and conflicts once nono
 # holds the outer boundary, so it runs in bypass mode here.
 #
+# The profile is codex-local, not the nolabs-ai/codex pack profile: codex reads
+# the ChatGPT session token out of the login keychain, which deny_keychains_macos
+# blocks, and the codex_apps connector MCP fails to start without it.
+#
 # Args before an optional `--` go to nono, so ad-hoc grants are a one-liner:
 #   noco                                  # plain session
 #   noco resume --last                    # args go to codex
@@ -25,5 +29,5 @@ if [ "$sep" -eq 1 ]; then
   shift
 fi
 
-exec nono run -p codex --allow-cwd "${nono_args[@]}" -- \
+exec nono run -p codex-local --allow-cwd "${nono_args[@]}" -- \
   codex --dangerously-bypass-approvals-and-sandbox "$@"
