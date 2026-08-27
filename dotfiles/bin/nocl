@@ -1,0 +1,27 @@
+# shellcheck shell=bash
+#
+# Claude Code inside the nono sandbox, with only the current directory writable.
+#
+# Args before an optional `--` go to nono, so ad-hoc grants are a one-liner:
+#   nocl                                  # plain session
+#   nocl -c                               # args go to claude
+#   nocl -r ~/.config/git -- -c           # grant a read, then continue
+#
+
+sep=0
+for a in "$@"; do
+  if [ "$a" = "--" ]; then sep=1; break; fi
+done
+
+nono_args=()
+if [ "$sep" -eq 1 ]; then
+  while [ "$1" != "--" ]; do
+    nono_args+=("$1")
+    shift
+  done
+  shift
+fi
+
+exec nono run -p claude --allow-cwd "${nono_args[@]}" -- \
+  claude --dangerously-skip-permissions \
+  --settings '{"skipDangerousModePermissionPrompt": true}' "$@"

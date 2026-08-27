@@ -1,5 +1,13 @@
 { pkgs, ... }:
 let
+  # Claude Code in the nono sandbox. A package rather than a shell function so
+  # that it is a real file on PATH and anything can call it
+  nocl = pkgs.writeShellApplication {
+    name = "nocl";
+    runtimeInputs = [ pkgs.nono ];
+    text = builtins.readFile ../dotfiles/bin/nocl;
+  };
+
   snowflakePkgs = pkgs.extend (final: prev: {
     python3Packages = prev.python3Packages.override {
       overrides = pfinal: pprev: {
@@ -38,6 +46,7 @@ in
     kubectl
     kubetail
     mermaid-cli
+    nocl # the let-binding above, not pkgs.nocl
     nono
     postgresql
     presenterm
@@ -48,6 +57,4 @@ in
     }))
     yaak
   ];
-
-  xdg.configFile."zsh/.zshrc.d/work.zsh".source = ../dotfiles/zsh/work.zsh;
 }
