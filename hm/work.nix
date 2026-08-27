@@ -8,6 +8,13 @@ let
     text = builtins.readFile ../dotfiles/bin/nocl;
   };
 
+  # Same, for Codex CLI.
+  noco = pkgs.writeShellApplication {
+    name = "noco";
+    runtimeInputs = [ pkgs.nono ];
+    text = builtins.readFile ../dotfiles/bin/noco;
+  };
+
   snowflakePkgs = pkgs.extend (final: prev: {
     python3Packages = prev.python3Packages.override {
       overrides = pfinal: pprev: {
@@ -47,6 +54,7 @@ in
     kubetail
     mermaid-cli
     nocl # the let-binding above, not pkgs.nocl
+    noco # ditto
     nono
     postgresql
     presenterm

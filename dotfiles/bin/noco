@@ -1,0 +1,29 @@
+# shellcheck shell=bash
+#
+# Codex CLI inside the nono sandbox, with only the current directory writable.
+#
+# Codex does its own sandboxing, which is redundant and conflicts once nono
+# holds the outer boundary, so it runs in bypass mode here.
+#
+# Args before an optional `--` go to nono, so ad-hoc grants are a one-liner:
+#   noco                                  # plain session
+#   noco resume --last                    # args go to codex
+#   noco -r ~/.config/git -- resume       # grant a read, then resume
+#
+
+sep=0
+for a in "$@"; do
+  if [ "$a" = "--" ]; then sep=1; break; fi
+done
+
+nono_args=()
+if [ "$sep" -eq 1 ]; then
+  while [ "$1" != "--" ]; do
+    nono_args+=("$1")
+    shift
+  done
+  shift
+fi
+
+exec nono run -p codex --allow-cwd "${nono_args[@]}" -- \
+  codex --dangerously-bypass-approvals-and-sandbox "$@"
