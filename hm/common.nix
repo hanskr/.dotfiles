@@ -6,7 +6,7 @@
 }:
 {
   # set once, bump carefully
-  home.stateVersion = "24.05";
+  home.stateVersion = "26.05";
 
   home.packages = with pkgs; [
     antidote
