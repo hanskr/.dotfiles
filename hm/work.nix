@@ -1,13 +1,16 @@
 { pkgs, ... }:
 let
-  # One more test on top of the seven sibling proxy_credential_capture_backend_*
-  # tests nixpkgs already skips. It binds a unix socket under the build dir, and
-  # Determinate Systems' /nix/var/nix/builds/<drv>-<pid>-<rand> prefix pushes the
-  # path past macOS's 104-byte sun_path limit — the shorter /private/tmp build
-  # dir upstream uses stays under it, which is why nixpkgs has not hit this.
+  # Two more tests on top of the long list nixpkgs already skips, both failing
+  # for the same reason: Determinate Systems builds under
+  # /nix/var/nix/builds/<drv>-<pid>-<rand>, where upstream uses a short
+  # /private/tmp path. The first binds a unix socket there and overruns macOS's
+  # 104-byte sun_path limit; the second inits a real sandbox there, and nono
+  # refuses to grant /nix when its own state root sits underneath it — the same
+  # overlap nixpkgs documents for the darwin env_vars tests.
   nono = pkgs.nono.overrideAttrs (old: {
     checkFlags = (old.checkFlags or [ ]) ++ [
       "--skip=proxy_runtime::tests::proxy_credential_capture_backend_exposes_browser_helper_for_open_urls"
+      "--skip=why_self_reports_active_profile_deny_before_covering_allow"
     ];
   });
 
