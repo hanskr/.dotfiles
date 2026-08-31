@@ -9,7 +9,8 @@
 #
 # The build is the expensive part, so it always happens before the prompt and
 # the result is kept as a GC root — saying "no" costs nothing but the wait, and
-# saying "yes" later reuses it.
+# saying "yes" later reuses it. With -u there is nothing to reuse: a bump that
+# is not activated is reverted, root and all, and takes another -u to redo.
 
 FLAKE="${HM_FLAKE:-$HOME/.dotfiles}"
 PROFILES="${XDG_STATE_HOME:-$HOME/.local/state}/nix/profiles"
@@ -17,6 +18,12 @@ PROFILE="$PROFILES/home-manager"
 RESULTS="${XDG_STATE_HOME:-$HOME/.local/state}/hm"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/nix"
 PINS="$RESULTS/pinned"
+
+# Set by the -u path so lock_restore knows the bump is ours to undo, and that
+# it has not yet been made permanent by an activation. Globals rather than
+# locals: the trap has to read them after cmd_switch is off the stack.
+LOCK_OURS=0
+LOCK_KEEP=0
 
 if [ -t 1 ]; then
   BOLD=$'\033[1m' DIM=$'\033[2m' RED=$'\033[31m' YEL=$'\033[33m' GRN=$'\033[32m' OFF=$'\033[0m'
@@ -637,6 +644,16 @@ commit_msg() {
   [ -z "$closure" ] || printf '\n%s\n' "$closure"
 }
 
+# A bump only earns its place in the tree by being activated. Anything else —
+# declined, failed evaluation, failed build, Ctrl-C mid-compile — puts the lock
+# back, so it can never leak into a later plain 'hm #<target>'.
+lock_restore() {
+  [ "$LOCK_OURS" = 1 ] && [ "$LOCK_KEEP" = 0 ] || return 0
+  git -C "$FLAKE" diff --quiet -- flake.lock && return 0
+  git -C "$FLAKE" checkout -- flake.lock
+  warn "flake.lock reverted — nothing was applied"
+}
+
 record() {
   local diff_out=$1 msg
   if git -C "$FLAKE" diff --quiet -- flake.lock; then
@@ -667,6 +684,12 @@ cmd_switch() {
   cd "$FLAKE" || die "cannot enter $FLAKE"
 
   if [ "$do_update" = 1 ]; then
+    # Only a lock we found clean is ours to throw away again — never clobber
+    # an edit that was already there. Armed before the update, so an interrupt
+    # during the fetch is covered too.
+    git -C "$FLAKE" diff --quiet -- flake.lock && LOCK_OURS=1
+    trap lock_restore EXIT
+    trap 'lock_restore; exit 130' INT TERM
     step "nix flake update"
     nix flake update
   fi
@@ -727,13 +750,23 @@ cmd_switch() {
 
   echo
   if ! confirm "Apply?" n; then
-    printf '%sbuilt, not applied:%s %s\n' "$DIM" "$OFF" "$out"
-    echo "run 'hm #$target' again to apply — it will reuse this build."
+    # The build is only worth keeping if a rerun can reach it again. Once the
+    # lock goes back that takes another -u, so drop the root with it.
+    if [ "$LOCK_OURS" = 1 ]; then
+      rm -f "$out"
+      lock_restore
+      echo "run 'hm #$target -u' to try the bump again."
+    else
+      printf '%sbuilt, not applied:%s %s\n' "$DIM" "$OFF" "$out"
+      echo "run 'hm #$target' again to apply — it will reuse this build."
+    fi
     return 0
   fi
 
   step "activating"
   "$out/activate"
+  # The generation now depends on this lock, so it stays whatever happens next.
+  LOCK_KEEP=1
   record "$diff_out"
 }
 

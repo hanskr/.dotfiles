@@ -31,6 +31,12 @@ hm purge 7          # keep only the last week
 reuses the build. On a successful switch it offers to commit `flake.lock`
 alone — with the version diff as the message — and push.
 
+A `-u` bump only earns its place in the tree by being activated. Decline the
+prompt — or hit a failed evaluation, a failed build, or Ctrl-C mid-compile —
+and `flake.lock` goes back to what it was, so the bump can never leak into a
+later plain `hm #<target>` that said nothing about updating. Run `-u` again to
+redo it. A lock you had already edited yourself is left alone.
+
 `hm purge` is the counterweight: every generation is a GC root, so nothing is
 ever reclaimed until they are deleted. It covers both profiles under
 `$XDG_STATE_HOME/nix/profiles`, hm's own build roots, and `~/.cache/nix`, then

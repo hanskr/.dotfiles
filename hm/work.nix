@@ -1,17 +1,28 @@
 { pkgs, ... }:
 let
+  # One more test on top of the seven sibling proxy_credential_capture_backend_*
+  # tests nixpkgs already skips. It binds a unix socket under the build dir, and
+  # Determinate Systems' /nix/var/nix/builds/<drv>-<pid>-<rand> prefix pushes the
+  # path past macOS's 104-byte sun_path limit — the shorter /private/tmp build
+  # dir upstream uses stays under it, which is why nixpkgs has not hit this.
+  nono = pkgs.nono.overrideAttrs (old: {
+    checkFlags = (old.checkFlags or [ ]) ++ [
+      "--skip=proxy_runtime::tests::proxy_credential_capture_backend_exposes_browser_helper_for_open_urls"
+    ];
+  });
+
   # Claude Code in the nono sandbox. A package rather than a shell function so
   # that it is a real file on PATH and anything can call it
   nocl = pkgs.writeShellApplication {
     name = "nocl";
-    runtimeInputs = [ pkgs.nono ];
+    runtimeInputs = [ nono ]; # the let-binding above, not pkgs.nono
     text = builtins.readFile ../dotfiles/bin/nocl;
   };
 
   # Same, for Codex CLI.
   noco = pkgs.writeShellApplication {
     name = "noco";
-    runtimeInputs = [ pkgs.nono ];
+    runtimeInputs = [ nono ]; # ditto
     text = builtins.readFile ../dotfiles/bin/noco;
   };
 
@@ -55,7 +66,7 @@ in
     mermaid-cli
     nocl # the let-binding above, not pkgs.nocl
     noco # ditto
-    nono
+    nono # ditto — let bindings win over `with pkgs`
     postgresql
     presenterm
     sbt
