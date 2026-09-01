@@ -62,6 +62,7 @@ in
         gke-gcloud-auth-plugin
       ]
     ))
+    gws
     humioctl
     k6
     kubectl
