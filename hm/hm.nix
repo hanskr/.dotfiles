@@ -6,6 +6,7 @@
   gnused,
   gnugrep,
   gawk,
+  jq,
 }:
 # `nix` is deliberately absent from runtimeInputs: writeShellApplication
 # prepends to $PATH rather than replacing it, so the script picks up the
@@ -19,6 +20,7 @@ writeShellApplication {
     gnused
     gnugrep
     gawk
+    jq
   ];
   text = builtins.readFile ./hm.sh;
 }

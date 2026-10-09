@@ -654,6 +654,18 @@ lock_restore() {
   warn "flake.lock reverted — nothing was applied"
 }
 
+# lock_regressions <old lock json> — inputs in ./flake.lock that are locked
+# to an older commit than they were in the given lock, one per line.
+lock_regressions() {
+  jq -r --argjson old "$1" '
+    .nodes | to_entries[]
+    | .key as $k | .value.locked.lastModified as $now
+    | ($old.nodes[$k].locked.lastModified // null) as $was
+    | select($now != null and $was != null and $now < $was)
+    | "  \($k): \($was | todate[0:10]) -> \($now | todate[0:10])"
+  ' flake.lock
+}
+
 record() {
   local diff_out=$1 msg
   if git -C "$FLAKE" diff --quiet -- flake.lock; then
@@ -674,7 +686,7 @@ record() {
 }
 
 cmd_switch() {
-  local target=$1 do_update=$2 attr out dry summary tobuild diff_out diff_colour majors cur_path new_path
+  local target=$1 do_update=$2 attr out dry summary tobuild diff_out diff_colour majors cur_path new_path lock_before back
 
   case " $(targets) " in
   *" $target "*) ;;
@@ -690,8 +702,18 @@ cmd_switch() {
     git -C "$FLAKE" diff --quiet -- flake.lock && LOCK_OURS=1
     trap lock_restore EXIT
     trap 'lock_restore; exit 130' INT TERM
+    lock_before=$(cat flake.lock)
     step "nix flake update"
     nix flake update
+    # When nix can't resolve a branch (GitHub's anonymous API rate limit, say)
+    # it falls back to whatever it last resolved on this machine, which may
+    # well be older than the lock we pulled — and writes that in regardless.
+    # An update never means going back in time, so refuse it outright.
+    if back=$(lock_regressions "$lock_before") && [ -n "$back" ]; then
+      printf '%s\n' "$lock_before" >flake.lock
+      printf '%s\n' "$back" >&2
+      die "nix flake update moved inputs backwards (stale fetch cache?) — flake.lock restored"
+    fi
   fi
 
   mkdir -p "$RESULTS"
