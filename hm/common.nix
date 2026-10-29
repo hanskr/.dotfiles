@@ -52,4 +52,23 @@
   xdg.configFile."ghostty/config" = {
     source = ../dotfiles/ghostty/config;
   };
+
+  # Authenticated GitHub fetches for flake inputs; anonymous ones hit the
+  # 60/hour API rate limit. The token is kept out of git and the world-readable
+  # store: activation writes it next to nix.conf, and `!include` ignores the
+  # file if it is missing (e.g. gh not logged in).
+  xdg.configFile."nix/nix.conf".text = ''
+    !include access-tokens.conf
+  '';
+  home.activation.nixAccessTokens = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    tokens="${config.xdg.configHome}/nix/access-tokens.conf"
+    if [ -n "''${DRY_RUN:-}" ]; then
+      verboseEcho "Would write $tokens"
+    elif token=$(${pkgs.gh}/bin/gh auth token 2>/dev/null); then
+      install -m 600 /dev/null "$tokens"
+      printf 'access-tokens = github.com=%s\n' "$token" > "$tokens"
+    else
+      warnEcho "gh not logged in; skipping $tokens"
+    fi
+  '';
 }
