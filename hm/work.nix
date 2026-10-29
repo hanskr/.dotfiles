@@ -45,6 +45,21 @@ let
           doCheck = false;
           dependencies = (old.dependencies or []) ++ [ pfinal.boto3 pfinal.botocore ];
         });
+        # typer 0.27 vendors its own click (typer._click) and drops the click
+        # dependency. snowflake-cli 3.13.1 still calls click.get_current_context(),
+        # which never sees typer's context, so every command dies with "There is
+        # no active click context". Hold typer at the last version on real click.
+        typer = pprev.typer.overridePythonAttrs (old: rec {
+          version = "0.25.1";
+          src = final.fetchFromGitHub {
+            owner = "fastapi";
+            repo = "typer";
+            tag = version;
+            hash = "sha256-HIvXseuR7zUXFuTWzntDfHhAp8BcFjxo35gn0i4+03w=";
+          };
+          dependencies = (old.dependencies or []) ++ [ pfinal.click ];
+          doCheck = false;
+        });
       };
     };
   });
@@ -53,7 +68,7 @@ in
   home.packages = with pkgs; [
     _1password-cli
     acli
-    awscli
+    awscli2
     gh
     gnupg
     (google-cloud-sdk.withExtraComponents (
