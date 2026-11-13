@@ -93,6 +93,5 @@ in
       doCheck = false;
       propagatedBuildInputs = (old.propagatedBuildInputs or []) ++ [ pkgs.python3Packages.keyring ];
     }))
-    yaak
   ];
 }
